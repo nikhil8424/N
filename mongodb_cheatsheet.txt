@@ -1,0 +1,118 @@
+MongoDB BookMyShow Cheat Sheet
+
+1. CREATE DATABASE
+use movieBookingDB
+
+2. CREATE COLLECTIONS
+db.createCollection("movies")
+db.createCollection("cinemas")
+db.createCollection("shows")
+db.createCollection("users")
+db.createCollection("bookings")
+db.createCollection("payments")
+
+3. INSERT DATA
+
+db.movies.insertMany([
+{ _id: 1, title: "Inception", genre: "Sci-Fi", duration: 148 },
+{ _id: 2, title: "Jawan", genre: "Action", duration: 165 }
+])
+
+db.cinemas.insertMany([
+{ _id: 101, name: "PVR", city: "Mumbai" },
+{ _id: 102, name: "INOX", city: "Pune" }
+])
+
+db.shows.insertMany([
+{ _id: 201, movie_id: 1, cinema_id: 101, time: "18:00", price: 300 },
+{ _id: 202, movie_id: 2, cinema_id: 102, time: "21:00", price: 250 }
+])
+
+db.users.insertMany([
+{ _id: 301, name: "Nick", email: "nick@gmail.com" },
+{ _id: 302, name: "Rahul", email: "rahul@gmail.com" }
+])
+
+db.bookings.insertMany([
+{ _id: 401, user_id: 301, show_id: 201, seats: 2, total: 600 },
+{ _id: 402, user_id: 302, show_id: 202, seats: 3, total: 750 }
+])
+
+db.payments.insertMany([
+{ _id: 501, booking_id: 401, amount: 600, status: "Paid", method: "UPI" },
+{ _id: 502, booking_id: 402, amount: 750, status: "Paid", method: "Card" }
+])
+
+4. CRUD OPERATIONS
+
+# CREATE
+db.movies.insertOne({ title: "Leo", genre: "Action", duration: 160 })
+
+# READ
+db.movies.find()
+db.users.find({ name: "Nick" })
+
+# UPDATE
+db.movies.updateOne(
+{ title: "Leo" },
+{ $set: { duration: 165 } }
+)
+
+# DELETE
+db.movies.deleteOne({ title: "Leo" })
+
+5. AGGREGATION
+
+# LOOKUP
+db.shows.aggregate([
+{ $lookup: { from: "movies", localField: "movie_id", foreignField: "_id", as: "movie" } }
+])
+
+# GROUP + SUM + AVG
+db.shows.aggregate([
+{ $group: { _id: "$movie_id", total: { $sum: "$price" }, avg: { $avg: "$price" } } }
+])
+
+# SORT + LIMIT
+db.bookings.aggregate([
+{ $sort: { total: -1 } },
+{ $limit: 3 }
+])
+
+6. ANALYTICAL QUERIES
+
+# 1 Total bookings per movie
+db.bookings.aggregate([
+{ $lookup: { from: "shows", localField: "show_id", foreignField: "_id", as: "show" } },
+{ $unwind: "$show" },
+{ $group: { _id: "$show.movie_id", totalBookings: { $sum: 1 } } }
+])
+
+# 2 Revenue per cinema
+db.bookings.aggregate([
+{ $lookup: { from: "shows", localField: "show_id", foreignField: "_id", as: "show" } },
+{ $unwind: "$show" },
+{ $group: { _id: "$show.cinema_id", revenue: { $sum: "$total" } } }
+])
+
+# 3 Top 3 movies
+db.bookings.aggregate([
+{ $lookup: { from: "shows", localField: "show_id", foreignField: "_id", as: "show" } },
+{ $unwind: "$show" },
+{ $group: { _id: "$show.movie_id", count: { $sum: 1 } } },
+{ $sort: { count: -1 } },
+{ $limit: 3 }
+])
+
+# 4 Average ticket price
+db.shows.aggregate([
+{ $group: { _id: null, avgPrice: { $avg: "$price" } } }
+])
+
+# 5 Total spending per user
+db.bookings.aggregate([
+{ $group: { _id: "$user_id", totalSpent: { $sum: "$total" } } }
+])
+
+# 6 Successful payments
+db.payments.find({ status: "Paid" })
